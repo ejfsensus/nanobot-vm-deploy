@@ -1,0 +1,41 @@
+{
+  "_comment": "Reference config — actual file is generated at install time. Tokens, paths, and model name are substituted by install.sh from /etc/nanobot/nanobot.env and the .env at the repo root.",
+  "workspace": "/var/lib/nanobot/.nanobot/workspace",
+  "providers": {
+    "local": {
+      "apiBase": "http://127.0.0.1:11434/v1",
+      "apiKey": "ollama",
+      "model": "minicpm5:latest"
+    }
+  },
+  "modelPresets": {
+    "default": {
+      "label": "Local Ollama",
+      "provider": "local",
+      "model": "minicpm5:latest",
+      "maxTokens": 4096,
+      "contextWindowTokens": 8192,
+      "temperature": 0.7
+    }
+  },
+  "agents": {
+    "defaults": {
+      "modelPreset": "default",
+      "maxTokens": 4096,
+      "maxToolIterations": 20,
+      "memoryWindow": 50
+    }
+  },
+  "gateway": {
+    "host": "0.0.0.0",
+    "port": 18790
+  },
+  "channels": {
+    "websocket": {
+      "enabled": true,
+      "host": "0.0.0.0",
+      "port": 8765,
+      "tokenIssueSecret": "REPLACED_AT_INSTALL_TIME_BY_INSTALL_SH"
+    }
+  }
+}

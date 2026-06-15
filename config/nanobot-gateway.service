@@ -1,0 +1,38 @@
+[Unit]
+Description=nanobot gateway (HKUDS)
+Documentation=https://github.com/HKUDS/nanobot
+After=network-online.target ollama.service
+Wants=network-online.target
+Requires=ollama.service
+StartLimitIntervalSec=60
+StartLimitBurst=5
+
+[Service]
+Type=simple
+User=nanobot
+Group=nanobot
+WorkingDirectory=/var/lib/nanobot
+EnvironmentFile=-/etc/nanobot/nanobot.env
+Environment=HOME=/var/lib/nanobot
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/nanobot/venv/bin/nanobot gateway
+Restart=always
+RestartSec=5
+TimeoutStopSec=20
+
+# ---- Hardening (remove the block below if you need broader FS access) ----
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=full
+ProtectHome=read-only
+ReadWritePaths=/var/lib/nanobot
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictSUIDSGID=true
+LockPersonality=true
+MemoryDenyWriteExecute=false
+# -------------------------------------------------------------------------
+
+[Install]
+WantedBy=multi-user.target
