@@ -11,6 +11,12 @@ model by editing one line of `.env` and re-running the installer.
 Designed to be **forked and amended** — drop your own MCP servers and
 nanobot skills into `mcp/` and `skills/`, commit, re-run, done.
 
+**Targets:** Linux VMs (default) **and** [Lightning AI
+Studios](https://lightning.ai/docs/overview/ai-studio) (free CPU tier
+supported). The installer auto-detects which one it's on and dispatches
+to the right platform overlay. See
+[`platform/lightning/README.md`](platform/lightning/README.md).
+
 ---
 
 ## TL;DR — get a working agent in 4 commands
@@ -61,24 +67,33 @@ See [`docs/architecture.md`](docs/architecture.md) for the full picture.
 
 ```
 nanobot-vm-deploy/
-├── install.sh                  ← single entry point
+├── install.sh                  ← platform-aware entry point (auto-dispatches VM or Lightning)
 ├── .env.example                ← every knob you might want to change
 ├── config/
 │   ├── nanobot.config.json     ← reference config (install.sh generates the real one)
 │   ├── ollama.env              ← Ollama env template
-│   └── nanobot-gateway.service ← systemd unit template
+│   └── nanobot-gateway.service ← systemd unit template (VM only)
 ├── scripts/
-│   ├── status.sh               ← health check
+│   ├── status.sh               ← health check (VM)
 │   ├── update-model.sh         ← swap the model
 │   ├── uninstall.sh            ← clean removal
 │   ├── post-install.sh         ← YOUR HOOK for custom MCP/skills
 │   └── lib/                    ← logging + OS detection + pkg helpers
+├── platform/
+│   ├── README.md               ← about the platform/ overlay system
+│   └── lightning/              ← Lightning.ai Studio variation
+│       ├── .lightning_studio/  ← on_start.sh + .studiorc
+│       ├── scripts/            ← install / start / stop / status / keep_alive
+│       ├── config/
+│       └── README.md
 ├── mcp/servers/                ← drop custom MCP servers here
 ├── skills/                     ← drop custom nanobot skills here
-└── docs/                       ← architecture, config, MCP, skills, troubleshooting
+└── docs/                       ← architecture, configuration, MCP, skills, troubleshooting, lightning
 ```
 
 ## Common operations
+
+**On a VM:**
 
 | You want to…                          | Do this                                                  |
 |---------------------------------------|----------------------------------------------------------|
@@ -91,6 +106,20 @@ nanobot-vm-deploy/
 | Tail Ollama logs                      | `journalctl -u ollama -f`                                |
 | Run a one-shot agent command          | `sudo -u nanobot -E /opt/nanobot/venv/bin/nanobot agent -m "hello"` |
 | Wipe everything and start over        | `sudo ./scripts/uninstall.sh --full && sudo ./install.sh` |
+
+**On Lightning AI Studio** (auto-detected, but you can also invoke
+`platform/lightning/scripts/install.sh` directly):
+
+| You want to…                          | Do this                                                  |
+|---------------------------------------|----------------------------------------------------------|
+| Check it's healthy                    | `bash /teamspace/studios/<studio>/scripts/status.sh`     |
+| Bring the stack up                    | `bash /teamspace/studios/<studio>/scripts/start.sh`      |
+| Bring it down cleanly                 | `bash /teamspace/studios/<studio>/scripts/stop.sh`       |
+| Expose the WebUI to the internet      | Open **Port Viewer** plugin → add port 8765 → **Open**   |
+| Expose the WebUI with auth            | Open **API Builder** plugin → new API → token / basic    |
+| One-shot agent command                | `nanobot agent -m "hello"` (binary is on `$PATH`)        |
+| Survive the 4-hour restart            | It just works — `on_start.sh` re-runs on every launch    |
+| Prevent the 10-min idle-sleep         | `keep_alive.sh` pings the WebUI every 2 min              |
 
 ## Requirements
 

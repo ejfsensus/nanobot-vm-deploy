@@ -1,22 +1,23 @@
 # Installation Guide
 
-Detailed, step-by-step, for someone staring at a fresh VM.
+Detailed, step-by-step, for someone staring at a fresh VM or a fresh
+Lightning AI Studio. The installer auto-detects the platform and
+dispatches accordingly.
 
-## 0. Prerequisites
+## Which platform are you on?
 
-You need:
+| Target                         | Detected by           | See section  |
+|--------------------------------|-----------------------|--------------|
+| **Linux VM** (Ubuntu, Debian, RHEL, Fedora, Arch, …) | No `/teamspace` directory | [§ A — Linux VM](#a--linux-vm) |
+| **Lightning AI Studio** (free or paid) | `/teamspace` directory present | [§ B — Lightning Studio](#b--lightning-ai-studio) |
 
-| Requirement   | Why                                                     | How to verify                  |
-|---------------|---------------------------------------------------------|--------------------------------|
-| Linux         | This is a Linux deploy                                  | `uname -a`                     |
-| sudo / root   | The installer creates system users and systemd units   | `sudo -n true`                 |
-| Python 3.11+  | nanobot requires it                                     | `python3 --version`            |
-| curl          | Fetches the Ollama installer and pip wheels             | `curl --version`               |
-| ~2 GB free    | nanobot venv + model + workspace                        | `df -h /`                      |
-| Outbound HTTPS| PyPI + Ollama registry + GitHub                         | `curl -I https://pypi.org`     |
+The same `install.sh` works for both. If it sees `/teamspace`, it
+delegates to `platform/lightning/scripts/install.sh`. Otherwise it runs
+the VM installer.
 
-The installer will `apt-get install` (or equivalent) anything missing
-on Debian / Ubuntu / RHEL / Fedora / Arch / openSUSE / Alpine.
+---
+
+## A. Linux VM
 
 ## 1. Get the repo onto the VM
 
@@ -127,3 +128,91 @@ affected services. Use this as your "apply my latest config" command.
 sudo ./scripts/uninstall.sh           # keep ollama + models
 sudo ./scripts/uninstall.sh --full    # nuke ollama + models too
 ```
+
+---
+
+## B. Lightning AI Studio
+
+Detailed Lightning-specific walkthrough is in
+[`docs/lightning.md`](docs/lightning.md). The 30-second version:
+
+### 0. Prerequisites
+
+- A free Lightning account at <https://lightning.ai>
+- A new CPU Studio (4 vCPU, 16 GB is the free tier; that runs
+  `minicpm5` on CPU just fine)
+
+### 1. Get the repo into the Studio
+
+In the Studio's web terminal:
+
+```bash
+git clone https://github.com/<you>/nanobot-vm-deploy.git
+cd nanobot-vm-deploy
+cp .env.example .env       # edit if you want a different model
+```
+
+### 2. Run the Lightning installer
+
+```bash
+bash platform/lightning/scripts/install.sh
+```
+
+This:
+1. Installs Ollama if missing
+2. Pulls `openbmb/minicpm5:latest` (~700 MB)
+3. Creates a `minicpm5-ctx8192` alias with `num_ctx=8192`
+4. Installs `nanobot-ai` into a venv under `/teamspace/studios/<studio>/venv/`
+5. Writes `~/.nanobot/config.json` (Ollama + WebSocket on 8765)
+6. Stages `.lightning_studio/on_start.sh` in your Studio home
+7. Stages `.lightning_studio/.studiorc` so manual commands see the env
+
+### 3. Bring it up
+
+Either restart the Studio (so `on_start.sh` runs from a clean state), or
+bring it up immediately:
+
+```bash
+bash /teamspace/studios/<studio>/scripts/start.sh
+```
+
+### 4. Expose the WebUI
+
+1. Click the **plug-ins** icon (top right of the Studio).
+2. **Port viewer** → **Add port** → port `8765` → **Open**.
+3. Lightning prints a public URL like `https://8765-<hash>.lightningapps.ai/`.
+4. Open it. That's your WebUI.
+
+If you want to share it with other people, use **API builder** instead
+(token or basic auth).
+
+### 5. Day-to-day
+
+| Task                            | Command                                                       |
+|---------------------------------|---------------------------------------------------------------|
+| Start / restart                 | `bash /teamspace/studios/<studio>/scripts/start.sh`           |
+| Stop                            | `bash /teamspace/studios/<studio>/scripts/stop.sh`            |
+| Health check                    | `bash /teamspace/studios/<studio>/scripts/status.sh`          |
+| Tail logs                       | `tail -f /teamspace/studios/<studio>/logs/{on_start,nanobot,ollama,keepalive}.log` |
+| One-shot agent command          | `nanobot agent -m "hello"`                                    |
+| Survive the 4-hour restart      | Automatic — `on_start.sh` re-runs on every launch             |
+| Avoid the 10-min idle-sleep     | `keep_alive.sh` pings the WebUI every 2 min                   |
+
+### 6. Re-running
+
+```bash
+# edit .env if needed
+bash platform/lightning/scripts/install.sh    # idempotent
+```
+
+### 7. Tearing it down
+
+```bash
+bash /teamspace/studios/<studio>/scripts/stop.sh   # stop processes
+rm -rf /teamspace/studios/<studio>                  # wipe the install
+# then delete the Studio from the Lightning UI
+```
+
+See [`docs/lightning.md`](docs/lightning.md) for the full guide
+including troubleshooting, updating nanobot, and using the API Builder
+plugin.

@@ -599,6 +599,24 @@ main() {
     warn "DRY RUN — no changes will be made"
   fi
 
+  # ---------------------------------------------------------------
+  #  Platform dispatch: Lightning.ai Studios need different glue
+  #  (no systemd, persistent /teamspace path, nohup, on_start.sh).
+  #  If we detect one, delegate to the platform overlay and exit.
+  # ---------------------------------------------------------------
+  if [[ -d /teamspace ]]; then
+    log "Detected /teamspace — looks like a Lightning AI Studio"
+    log "Delegating to platform/lightning/scripts/install.sh"
+    log "(use --platform=vm to force the VM path instead)"
+    if [[ -f "${SCRIPT_DIR}/platform/lightning/scripts/install.sh" ]]; then
+      exec bash "${SCRIPT_DIR}/platform/lightning/scripts/install.sh" "$@"
+    else
+      err "platform/lightning/scripts/install.sh not found"
+      err "Did you forget to git clone the full repo (not just install.sh)?"
+      exit 1
+    fi
+  fi
+
   require_root
   detect_os
   check_python
